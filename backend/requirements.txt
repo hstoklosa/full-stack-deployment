@@ -1,0 +1,7 @@
+fastapi[standard]
+pydantic
+pydantic-settings
+python-dotenv
+sqlalchemy
+sqlmodel
+psycopg[binary,pool]

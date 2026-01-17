@@ -5,3 +5,4 @@ python-dotenv
 sqlalchemy
 sqlmodel
 psycopg[binary,pool]
+alembic

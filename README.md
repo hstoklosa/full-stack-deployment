@@ -82,3 +82,129 @@ reload the changes
 ```bash
 sudo systemctl reload ssh
 ```
+
+## app running
+
+instead of running application binary directly, instead we can run it using docker through an image.
+
+containerization allows to build an immutable image of the app for distribution.
+
+- immutable
+- versioned
+- configurable
+
+install docker and docker compose onto the vps.
+
+https://docs.docker.com/engine/install/ubuntu/
+
+once installed, add user to the docker group to avoid using sudo when interfacing with docker.
+
+```bash
+sudo usermod -aG docker <username>
+```
+
+### app containerisation
+
+#### development
+
+`frontend/Dockerfile`
+
+```bash
+FROM node:22-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+
+RUN npm install
+
+COPY . .
+
+EXPOSE 5173
+
+CMD ["npm", "run", "dev"]
+```
+
+Vite's dev server binds `localhost` inside the container, which is not accessible from the host machine.
+
+to fix this, we tell Vite to listen on `0.0.0.0` (all network interfaces) so it is accessible from outside the container.
+
+modify `frontend/vite.config.ts` to include the following:
+
+```ts
+  server: {
+    host: '0.0.0.0',
+    port: 5173,
+    watch: {
+        usePolling: true,
+    }
+  }
+```
+
+`backend/Dockerfile`
+
+```bash
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY requirements.txt /app
+
+RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
+
+COPY ./app /app/app
+
+CMD ["fastapi", "dev", "--host", "0.0.0.0", "--reload", "app/main.py"]
+```
+
+`docker-compose.yml`
+
+```yaml
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - 5173:5173
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./frontend:/app # create 2-way sync between local code and container code
+      - /app/node_modules # create anonymous volume to avoid overwriting container node_modules
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - 8000:8000
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/fs-deployment
+    volumes:
+      - ./backend/app:/app/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=fs-deployment
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+```
+
+`volumes` in `frontend` service allows for hot-reloading of changes to the web app.

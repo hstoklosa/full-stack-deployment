@@ -3,10 +3,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    env_file:
+      - .env
     ports:
       - 5173:5173
-    environment:
-      - NODE_ENV=development
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -15,10 +15,10 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    env_file:
+      - .env
     ports:
       - 8000:8000
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/fs-deployment
     volumes:
       - ./backend/app:/app/app
     depends_on:
@@ -28,10 +28,12 @@ services:
   db:
     image: postgres:16
     restart: always
+    env_file:
+      - .env
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=fs-deployment
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASS}
+      - POSTGRES_DB=${POSTGRES_DB}
     ports:
       - 5432:5432
     volumes:

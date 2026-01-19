@@ -3,8 +3,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
+      args:
+        VITE_API_URL: ${VITE_API_URL:-https://deploy.hstoklosa.dev/api}
     env_file:
-      - .env
+      - .env.production
     # ports:
     #   - 5173:5173
     volumes:
@@ -25,9 +27,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile.prod
     env_file:
-      - .env
-    # volumes:
-      # - ./backend/app:/app/app
+      - .env.production
     depends_on:
       db:
         condition: service_healthy

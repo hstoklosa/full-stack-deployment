@@ -12,6 +12,7 @@ interface Todo {
 
 // const API_URL = "http://localhost:8000";
 const API_URL = "https://deploy.hstoklosa.dev/api";
+const X_API_URL = import.meta.env.VITE_API_URL;
 
 function App() {
   const [todos, setTodos] = useState<Todo[]>([]);
@@ -19,6 +20,8 @@ function App() {
   const [descriptionInput, setDescriptionInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  console.log("XDDD", X_API_URL);
 
   const fetchTodos = async () => {
     try {

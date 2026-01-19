@@ -10,7 +10,8 @@ interface Todo {
   updated_at: string;
 }
 
-const API_URL = "http://localhost:8000";
+// const API_URL = "http://localhost:8000";
+const API_URL = "https://deploy.hstoklosa.dev/api";
 
 function App() {
   const [todos, setTodos] = useState<Todo[]>([]);

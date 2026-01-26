@@ -208,3 +208,146 @@ volumes:
 ```
 
 `volumes` in `frontend` service allows for hot-reloading of changes to the web app.
+
+#### production
+
+todo
+
+## firewall
+
+basic ports that should be enabled:
+
+- 22: ssh
+- 80: http
+- 443: https
+
+to achieve this, we can use the uncomplicated firewall `ufw` application (comes pre-installed on ubuntu).
+
+### defining firewall rules
+
+disable all inbound network requests and enable all outbound network requests by default:
+
+```bash
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+```
+
+enable ssh (must be done to access the server again)
+
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow http
+sudo ufw allow https
+```
+
+enable the firewall:
+
+```bash
+sudo ufw enable
+```
+
+check that the firewall was configured correctly:
+
+```bash
+sudo ufw show added
+```
+
+the firewall should be up and running:
+
+```bash
+sudo ufw status
+```
+
+however, the app can still be accessesible from a port that hasn't been explicitly allowed.
+
+this is caused by exposing the port with docker, which overrides the ip tables rules defined by ufw (well-known issue).
+
+to fix this, we can simply not define the ports within `docker-compose.yml` and use a reverse proxy, which is what will be exposed to the internet.
+
+## reverse proxy
+
+to begin setting up a reverse proxy with traefik, we need it to listen on port 80, forwarding any HTTP requests with <domain-name> host header to the appropriate service.
+
+adding traefik to the stack requires a new service to be added to the `docker-compose.yml` file:
+
+```yaml
+services:
+  proxy:
+    image: traefik:v3.1
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker"
+    ports:
+      # The HTTP Port
+      - 80:80
+      # The WebUI UI (enabled by --api.insecure=true)
+      - 8080:8080
+    volumes:
+      # So that Traefik can listen to docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+```
+
+add used ports to the firewall allowlist
+
+```bash
+sudo ufw allow 80
+sudo ufw allow 8080
+```
+
+traefik web ui dashboard: `http://<server-ip>:8080`
+
+set up so that HTTP requests are forwarded to the appropriate service.
+
+add labels to the services (frontend, backend...)
+
+````yaml
+labels:
+  - "traefik.enable=true"
+  # Route any HTTP requests that contain the host to this service
+  - "traefik.http.routers.frontend.rule=Host(`deploy.hstoklosa.dev`)"
+
+
+### Other
+
+```bash
+sudo ufw allow 80
+sudo ufw allow 443
+````
+
+create a new network for the proxy to use:
+
+```bash
+docker network create proxy
+```
+
+add the proxy network to the `traefik/docker-compose.yml` file:
+
+```yaml
+networks:
+  proxy:
+    external: true
+```
+
+## load balancing
+
+when you scale up the number of instances of a service,
+
+```yaml
+docker compose scale backend=3
+```
+
+traefik will automatically load balance the requests between the instances.
+
+having a load balancer on a single node (doesn't improve performance) improves reliability of the service through increased availability.
+
+this scaling can be persistent by adding a `replica` block to the `docker-compose.yml` file:
+
+```yaml
+deploy:
+  mode: replicated
+  replicas: 3
+```
+
+## tls + https
+
+basic intro: https://howhttps.works/

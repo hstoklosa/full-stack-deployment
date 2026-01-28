@@ -474,3 +474,30 @@ modify the name of the image to include `prod` tag:
 image: <image-name>:prod
 ```
 
+## monitoring
+
+if a website goes down, we want to be notified.
+
+to do this in a production environment, we can use observability (collecting logs, metrics, traces and storing them in an associated database).
+
+the following tools require a lot of infrastructure.
+
+- prometheus/grafana: metrics
+- elasticsearch: logs
+
+instead, for a single VPS node, an uptime monitoring can be used to periodically check if the website is up and running.
+
+for example: https://uptimerobot.com/
+
+final step is to disable the `traefik` web ui by removing the following command from the `traefik/docker-compose.yml` file:
+
+```yaml
+- "--api.insecure=true"
+- 8080:8080
+```
+
+redeploy the services:
+
+```bash
+docker compose up -d
+```

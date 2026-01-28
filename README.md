@@ -351,3 +351,86 @@ deploy:
 ## tls + https
 
 basic intro: https://howhttps.works/
+
+to handle tls certificates, we can specify the following commands to traefik service:
+
+```yaml
+# Prevents any containers from being exposed by default
+- "--providers.docker.exposedbydefault=false"
+# Secure connections
+- "--entrypoints.websecure.address=:443"
+# Use TLS for certificate issuance
+- "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+- "--certificatesresolvers.letsencrypt.acme.email=your@email.com"
+# Location of where to store certificate data
+"--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+```
+
+reference port 443 so that the load balancer would be accessible over https.
+
+```yaml
+ports:
+  - 443:443
+  - 8080:8080
+```
+
+add volume mapping for the certificate data:
+
+```yaml
+volumes:
+  - ./letsencrypt:/letsencrypt
+  - /var/run/docker.sock:/var/run/docker.sock
+```
+
+add these labels to the services (frontend, backend...)
+
+```yaml
+labels:
+  #  Explicitly allow traefik to proxy to this service
+  - "traefik.enable=true"
+  - "traefik.http.routers.frontend.rule=Host(`deploy.hstoklosa.dev`)"
+  # Requests must come in on the 443 port to be routed to this service
+  - "traefik.http.routers.frontend.entrypoints=websecure"
+  # Use the certificate resolver defined in the traefik service
+  - "traefik.http.routers.frontend.tls=true"
+  - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+```
+
+define the volume for letsencrypt certificate data:
+
+```yaml
+volumes:
+  - ./letsencrypt:/letsencrypt
+```
+
+restart the services:
+
+```bash
+cd ~/traefik && docker compose up -d
+cd ~/fs-deployment && docker compose up -d
+```
+
+### http redirect
+
+redirect http requests on port `80` to `443`.
+
+add the following commands to `traefik/docker-compose.yml` file:
+
+```yaml
+services:
+  traefik:
+    ...
+    command:
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+```
+
+add port `80` to the ports list:
+
+```yaml
+ports:
+  - 80:80
+  - 443:443
+  - 8080:8080
+```

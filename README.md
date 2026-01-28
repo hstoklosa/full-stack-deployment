@@ -434,3 +434,43 @@ ports:
   - 443:443
   - 8080:8080
 ```
+
+## automated deployments
+
+whenever a change has been made (to the code or docker image), the vps should be able to automatically pull those changes and redeploy the services.
+
+watchtower is a tool that watches the images defined in `docker-compose.yml` file.
+
+when a new version of an image is pushed, watchtower will pull the latest version, update containers, and restart any associated services.
+
+add the following service to the `docker-compose.yml` file:
+
+```yaml
+services:
+  watchtower:
+    image: containrrr/watchtower
+    command:
+      # Enforces the use of a label to define which services should be monitored
+      - "--label-enable"
+      # Interval in seconds between polling for new images
+      - "--interval"
+      - "30"
+      # Each service is updated one after the other, avoiding downtime
+      - "rolling-restart"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+```
+
+add a label to the services that should be monitored by watchtower:
+
+```yaml
+labels:
+  - "com.centurylinklabs.watchtower.enable=true"
+```
+
+modify the name of the image to include `prod` tag:
+
+```yaml
+image: <image-name>:prod
+```
+
